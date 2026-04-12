@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor con Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: #181825;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #313244;
+        }
+        
+        h1 {
+            font-size: 18px;
+            color: #f5c2e7;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background: #89b4fa;
+            color: #1e1e2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #b4befe;
+        }
+        
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #313244;
+            min-width: 200px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .tabs-bar {
+            display: flex;
+            background: #181825;
+            border-bottom: 1px solid #313244;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #313244;
+            color: #a6adc8;
+            cursor: pointer;
+            border-right: 1px solid #181825;
+            font-size: 13px;
+            white-space: nowrap;
+            gap: 8px;
+            min-width: 100px;
+        }
+
+        .tab:hover {
+            background: #45475a;
+        }
+
+        .tab.active {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border-bottom: 2px solid #89b4fa;
+        }
+
+        .tab-close {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .tab-close:hover {
+            background: #f38ba8;
+            color: #1e1e2e;
+        }
+
+        .new-tab {
+            padding: 8px 12px;
+            background: #181825;
+            color: #a6adc8;
+            cursor: pointer;
+            font-size: 16px;
+            border-right: 1px solid #313244;
+        }
+
+        .new-tab:hover {
+            background: #313244;
+            color: #cdd6f4;
+        }
+
+        .editor-container > div:first-child {
+            flex: 0 0 auto;
+        }
+
+        .editor-container > textarea {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .resizer {
+            width: 6px;
+            background: #313244;
+            cursor: col-resize;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .resizer:hover, .resizer.active {
+            background: #89b4fa;
+        }
+
+        .preview-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+
+        .preview-container > div:first-child {
+            flex: 0 0 auto;
+        }
+
+        .preview-container > iframe {
+            flex: 1;
+            min-height: 0;
+        }
+        
+        .editor-label {
+            background: #313244;
+            padding: 8px 12px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a6adc8;
+        }
+        
+        #editor {
+            flex: 1;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border: none;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+        }
+        
+        #editor::placeholder {
+            color: #6c7086;
+        }
+        
+        
+        #preview {
+            flex: 1;
+            background: #ffffff;
+            border: none;
+            width: 100%;
+        }
+        
+        .status {
+            background: #181825;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #6c7086;
+            border-top: 1px solid #313244;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📝 Code Editor</h1>
+        <div class="controls">
+            <button id="runBtn">▶ Ejecutar</button>
+            <button id="clearBtn">🗑 Limpiar</button>
+        </div>
+    </header>
+    
+    <div class="main">
+        <div class="editor-container" id="editorContainer">
+            <div class="tabs-bar">
+                <div class="tab active" data-id="1">
+                    <span>untitled.html</span>
+                    <span class="tab-close" onclick="closeTab(event, 1)">×</span>
+                </div>
+                <div class="new-tab" onclick="newTab()" title="Nuevo archivo">+</div>
+            </div>
+            <textarea id="editor" placeholder="Escribe tu código aquí..."></textarea>
+        </div>
+        
+        <div class="resizer" id="resizer"></div>
+        
+        <div class="preview-container" id="previewContainer">
+            <div class="editor-label">Vista Previa</div>
+            <iframe id="preview"></iframe>
+        </div>
+    </div>
+    
+    <div class="status">
+        <span id="statusText">Listo</span>
+        <span id="lineCol">Línea 1, Col 1</span>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const runBtn = document.getElementById('runBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusText = document.getElementById('statusText');
+        const lineCol = document.getElementById('lineCol');
+        const resizer = document.getElementById('resizer');
+        const editorContainer = document.getElementById('editorContainer');
+        const previewContainer = document.getElementById('previewContainer');
+
+        let tabId = 1;
+        const tabs = {};
+        tabs[1] = { name: 'untitled.html', content: '' };
+
+        function newTab() {
+            tabId++;
+            const name = prompt('Nombre del archivo:', 'nuevo.html');
+            const fileName = name || `untitled${tabId}.html`;
+            tabs[tabId] = { name: fileName, content: '' };
+            
+            const tabsBar = document.querySelector('.tabs-bar');
+            const newTabBtn = document.querySelector('.new-tab');
+            
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.dataset.id = tabId;
+            tab.innerHTML = `<span>${fileName}</span><span class="tab-close" onclick="closeTab(event, ${tabId})">×</span>`;
+            tab.onclick = () => switchTab(tabId);
+            
+            tabsBar.insertBefore(tab, newTabBtn);
+            switchTab(tabId);
+        }
+
+        function switchTab(id) {
+            tabs[tabId].content = editor.value;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[data-id="${id}"]`).classList.add('active');
+            
+            tabId = id;
+            editor.value = tabs[id].content || '';
+            updatePreview();
+        }
+
+        function closeTab(e, id) {
+            e.stopPropagation();
+            if (Object.keys(tabs).length === 1) {
+                alert('No puedes cerrar el último tab');
+                return;
+            }
+            
+            const tab = document.querySelector(`.tab[data-id="${id}"]`);
+            tab.remove();
+            
+            delete tabs[id];
+            
+            if (id === tabId) {
+                const firstKey = Object.keys(tabs)[0];
+                switchTab(parseInt(firstKey));
+            }
+        }
+
+        let isResizing = false;
+        
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizer.classList.add('active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const containerRect = document.querySelector('.main').getBoundingClientRect();
+            const newWidth = e.clientX - containerRect.left;
+            const minWidth = 200;
+            const maxWidth = containerRect.width - 200 - 6;
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                editorContainer.style.width = newWidth + 'px';
+                editorContainer.style.flex = 'none';
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+        
+        function updatePreview() {
+            const code = editor.value;
+            const iframe = preview.contentWindow.document;
+            
+            iframe.open();
+            iframe.write(code);
+            iframe.close();
+            
+            statusText.textContent = 'Actualizado';
+        }
+        
+        runBtn.addEventListener('click', updatePreview);
+        
+        clearBtn.addEventListener('click', () => {
+            if (confirm('¿Limpiar todo el código?')) {
+                editor.value = '';
+                updatePreview();
+                statusText.textContent = 'Limpiado';
+            }
+        });
+        
+        editor.addEventListener('input', () => {
+            statusText.textContent = 'Modificado';
+        });
+        
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+                editor.selectionStart = editor.selectionEnd = start + 2;
+            }
+        });
+        
+        editor.addEventListener('click', updateLineCol);
+        editor.addEventListener('keyup', updateLineCol);
+        
+        function updateLineCol() {
+            const text = editor.value.substring(0, editor.selectionStart);
+            const lines = text.split('\n');
+            const line = lines.length;
+            const col = lines[lines.length - 1].length + 1;
+            lineCol.textContent = `Línea ${line}, Col ${col}`;
+        }
+        
+        editor.value = `<h1>¡Hola Mundo! 🌐</h1>
+<p>Este es un editor de código con vista previa en tiempo real.</p>
+
+<style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+  }
+  h1 {
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background: white;
+    color: #667eea;
+  }
+</style>
+
+<script>
+  document.querySelector('button').addEventListener('click', () => {
+    alert('¡Hiciste clic! 🎉');
+  });
+<\/script>
+
+<button>Click me!</button>`;
+        
+        tabs[1].content = editor.value;
+        updatePreview();
+    </script>
+</body>
+</html>
